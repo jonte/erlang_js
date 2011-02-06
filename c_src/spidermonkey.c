@@ -124,6 +124,32 @@ JSBool js_log(JSContext *cx, uintN argc, jsval *vp) {
   return JSVAL_TRUE;
 }
 
+JSBool js_erlang(JSContext *cx, uintN argc, jsval *vp) {
+  if(argc == 2) { // get
+/*
+    jsval *argv = JS_ARGV(cx, vp);
+    jsval type = argv[0];
+    jsval key = argv[1];
+*/
+    const char *s = "get";
+    JSString *str = JS_NewStringCopyN(cx, s, sizeof(s));
+    JS_SET_RVAL(cx, vp, STRING_TO_JSVAL(str));
+  } else if (argc == 3) { // set
+/*
+    jsval *argv = JS_ARGV(cx, vp);
+    jsval type = argv[0];
+    jsval key = argv[1];
+    jsval value = argv[2];
+*/
+    const char *s = "set";
+    JSString *str = JS_NewStringCopyN(cx, s, sizeof(s));
+    JS_SET_RVAL(cx, vp, STRING_TO_JSVAL(str));
+  } else {
+    return JSVAL_FALSE;
+  }
+  return JSVAL_TRUE;
+}
+
 void sm_configure_locale() {
   JS_SetCStringsAreUTF8();
 }
@@ -151,8 +177,9 @@ spidermonkey_vm *sm_initialize(long thread_stack, long heap_size) {
   JS_SetBranchCallback(vm->context, on_branch);
   JS_SetContextPrivate(vm->context, state);
   JSNative *funptr = (JSNative *) *js_log;
-  JS_DefineFunction(vm->context, JS_GetGlobalObject(vm->context), "ejsLog", funptr,
-		    0, JSFUN_FAST_NATIVE);
+  JS_DefineFunction(vm->context, JS_GetGlobalObject(vm->context), "ejsLog", funptr, 0, JSFUN_FAST_NATIVE);
+  JSNative *js_erlptr = (JSNative *) *js_erlang;
+  JS_DefineFunction(vm->context, JS_GetGlobalObject(vm->context), "callErlang", js_erlptr, 0, JSFUN_FAST_NATIVE);
   end_request(vm);
 
   return vm;
