@@ -8,3 +8,4 @@ linked-in driver, spidermonkey_drv, and the Erlang source.
 
 You can test the freshly build code via 'make test' which should report all tests passed if the
 build was successful.
+
