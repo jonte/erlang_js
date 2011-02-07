@@ -20,6 +20,11 @@
 
 #include "spidermonkey.h"
 
+#include <unistd.h>
+#include <sys/types.h>
+#include <stdlib.h>
+#include <string.h>
+
 void free_error(spidermonkey_state *state);
 
 /* The class of the global object. */
@@ -124,25 +129,83 @@ JSBool js_log(JSContext *cx, uintN argc, jsval *vp) {
   return JSVAL_TRUE;
 }
 
+// Added by Jeena
+char * execute_erlang_command(char * command) {
+	
+	int	writepipe[2] = {-1,-1},	/* parent -> child */
+		  readpipe [2] = {-1,-1};	/* child -> parent */
+	pid_t	childpid;
+	
+	writepipe[0] = -1;
+
+	if ( pipe(readpipe) < 0  ||  pipe(writepipe) < 0 )
+	{
+		/* FATAL: cannot create pipe */
+		/* close readpipe[0] & [1] if necessary */
+	}
+	
+	#define	PARENT_READ	readpipe[0]
+	#define	CHILD_WRITE	readpipe[1]
+	#define CHILD_READ	writepipe[0]
+	#define PARENT_WRITE	writepipe[1]
+	
+	int size=1024, pos=0, r;
+	char *foo = malloc(size);
+	
+	if(!foo){
+		// FIXME: better error handling
+		return foo;
+	}
+
+	if((childpid = fork()) == -1) {
+		perror("fork");
+		exit(1);
+	}
+	
+	if(childpid == 0) { // is child
+
+		close(PARENT_WRITE);
+		close(PARENT_READ);
+
+		dup2(CHILD_READ,  0);  close(CHILD_READ);
+		dup2(CHILD_WRITE, 1);  close(CHILD_WRITE);
+
+		char *arg[] = { "erl_call", "-s", "-n", "ggs", "-a", command, (char *) 0 }; // FIXME: remove hardcoded "ggs"
+		execvp (arg[0], arg);
+		exit(1);
+		
+	} else { // is parent
+				
+		close(CHILD_READ);
+		close(CHILD_WRITE);
+
+
+		while((r=read(PARENT_READ, foo+pos, size-pos)) > 0 ) {
+			pos+=r;
+			if(pos > size/2) {
+				size *= 2;
+				foo=realloc(foo, size);
+				if(!foo) {
+					return foo;
+				}
+			}
+		}
+
+	}
+	
+	return foo;
+}
+
+// Added by jeena
 JSBool js_erlang(JSContext *cx, uintN argc, jsval *vp) {
-  if(argc == 2) { // get
-/*
+  if(argc == 1) { // get
     jsval *argv = JS_ARGV(cx, vp);
-    jsval type = argv[0];
-    jsval key = argv[1];
-*/
-    const char *s = "get";
-    JSString *str = JS_NewStringCopyN(cx, s, sizeof(s));
-    JS_SET_RVAL(cx, vp, STRING_TO_JSVAL(str));
-  } else if (argc == 3) { // set
-/*
-    jsval *argv = JS_ARGV(cx, vp);
-    jsval type = argv[0];
-    jsval key = argv[1];
-    jsval value = argv[2];
-*/
-    const char *s = "set";
-    JSString *str = JS_NewStringCopyN(cx, s, sizeof(s));
+    jsval erlang_call = argv[0];
+		
+		char *command = JS_GetStringBytes(JS_ValueToString(cx, erlang_call));
+		char *ret = execute_erlang_command(command);
+
+    JSString *str = JS_NewStringCopyN(cx, ret, sizeof(ret));
     JS_SET_RVAL(cx, vp, STRING_TO_JSVAL(str));
   } else {
     return JSVAL_FALSE;
