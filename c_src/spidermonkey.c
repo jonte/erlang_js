@@ -150,11 +150,11 @@ char * execute_erlang_command(char * command) {
 	#define PARENT_WRITE	writepipe[1]
 	
 	int size=1024, pos=0, r;
-	char *foo = malloc(size);
+	char *ret_str = malloc(size);
 	
-	if(!foo){
+	if(!ret_str){
 		// FIXME: better error handling
-		return foo;
+		return ret_str;
 	}
 
 	if((childpid = fork()) == -1) {
@@ -180,20 +180,20 @@ char * execute_erlang_command(char * command) {
 		close(CHILD_WRITE);
 
 
-		while((r=read(PARENT_READ, foo+pos, size-pos)) > 0 ) {
+		while((r=read(PARENT_READ, ret_str+pos, size-pos)) > 0 ) {
 			pos+=r;
 			if(pos > size/2) {
 				size *= 2;
-				foo=realloc(foo, size);
-				if(!foo) {
-					return foo;
+				ret_str=realloc(ret_str, size);
+				if(!ret_str) {
+					return ret_str;
 				}
 			}
 		}
 
 	}
 	
-	return foo;
+	return ret_str;
 }
 
 // Added by jeena
@@ -202,10 +202,10 @@ JSBool js_erlang(JSContext *cx, uintN argc, jsval *vp) {
     jsval *argv = JS_ARGV(cx, vp);
     jsval erlang_call = argv[0];
 		
-		char *command = JS_GetStringBytes(JS_ValueToString(cx, erlang_call));
-		char *ret = execute_erlang_command(command);
+	char *command = JS_GetStringBytes(JS_ValueToString(cx, erlang_call));
+	char *ret = execute_erlang_command(command);
 
-    JSString *str = JS_NewStringCopyN(cx, ret, sizeof(ret));
+    JSString *str = JS_NewStringCopyN(cx, ret, sizeof(char) * strlen(ret));
     JS_SET_RVAL(cx, vp, STRING_TO_JSVAL(str));
   } else {
     return JSVAL_FALSE;
